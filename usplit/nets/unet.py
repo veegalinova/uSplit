@@ -33,6 +33,7 @@ class UNet(pl.LightningModule):
         init_ch = config.model.get('init_channel_count', 64)
         self.multiscale_lowres_separate_branch = config.model.multiscale_lowres_separate_branch
         self._img_sz = config.data.image_size
+        self.out_ch = config.model.get('out_ch', 2)
 
         if self.enable_context_transfer:
             hw = config.data.image_size
@@ -59,7 +60,7 @@ class UNet(pl.LightningModule):
 
         setattr(self, f'up{self.n_levels}', Up(ch, ch // 2, bilinear))
         ch = ch // 2
-        self.outc = OutConv(ch, 2)
+        self.outc = OutConv(ch, self.out_ch)
 
         # multiscale architecture
         self.lowres_first_bottom_ups = self._multiscale_count = self.lowres_merge = self.lowres_net = None

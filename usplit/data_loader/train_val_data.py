@@ -10,7 +10,7 @@ from usplit.data_loader.multi_channel_train_val_data import train_val_data as _l
 from usplit.data_loader.sinosoid_dloader import train_val_data as _loadsinosoid
 from usplit.data_loader.sinosoid_threecurve_dloader import train_val_data as _loadsinosoid3curve
 from usplit.data_loader.two_tiff_rawdata_loader import get_train_val_data as _loadseparatetiff
-
+from usplit.data_loader.dexm_rawdata_loader import get_train_val_data as _loaddexm
 
 def get_train_val_data(data_config,
                        fpath,
@@ -50,5 +50,7 @@ def get_train_val_data(data_config,
         return zarr.load(fpath)
     elif data_config.data_type == DataType.SeparateTiffData:
         return _loadseparatetiff(fpath, data_config, datasplit_type, val_fraction, test_fraction)
+    elif data_config.data_type == DataType.Dexm:
+        return _loaddexm(fpath, data_config, datasplit_type, val_fraction, test_fraction)
     else:
         raise NotImplementedError(f'{DataType.name(data_config.data_type)} is not implemented')

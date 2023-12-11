@@ -658,8 +658,11 @@ class LadderVAE(pl.LightningModule):
             all_samples = all_samples * self.data_std + self.data_mean
             all_samples = all_samples.cpu()
             img_mmse = torch.mean(all_samples, dim=0)[0]
+
+            # torch.Size([20, 1, 2, 64, 64])
+            # torch.Size([128, 1, 64, 64])
             self.log_images_for_tensorboard(all_samples[:, 0, 0, ...], target[0, 0, ...], img_mmse[0], 'label1')
-            self.log_images_for_tensorboard(all_samples[:, 0, 1, ...], target[0, 1, ...], img_mmse[1], 'label2')
+            # self.log_images_for_tensorboard(all_samples[:, 0, 1, ...], target[0, 1, ...], img_mmse[1], 'label2')
 
         # return net_loss
 

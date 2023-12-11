@@ -1,25 +1,21 @@
 import glob
-import logging
 import os
-import pickle
 
 import pytorch_lightning as pl
 import torch
-import wandb
-from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from torch.utils.data import DataLoader
+from pytorch_lightning.loggers import WandbLogger
 
 from usplit.core.data_split_type import DataSplitType
 from usplit.core.data_type import DataType
-from usplit.core.loss_type import LossType
 from usplit.core.metric_monitor import MetricMonitor
 from usplit.core.model_type import ModelType
-from usplit.data_loader.multi_channel_determ_tiff_dloader import MultiChDeterministicTiffDloader
 from usplit.data_loader.lc_tiff_dloader import MultiScaleTiffDloader
 from usplit.data_loader.lc_zarr_dloader import MultiScaleZarrDloader
+from usplit.data_loader.multifile_dset import MultiFileDset
+from usplit.data_loader.multi_channel_determ_tiff_dloader import \
+    MultiChDeterministicTiffDloader
 from usplit.nets.model_utils import create_model
 from usplit.training_utils import ValEveryNSteps
 
@@ -42,6 +38,7 @@ def create_dataset(config, datadir, raw_data_dict=None, skip_train_dataset=False
             padding_kwargs['constant_values'] = config.data.padding_value
 
         dataclass = MultiScaleZarrDloader if config.data.data_type == DataType.SingleZarrData else MultiScaleTiffDloader
+        dataclass = MultiFileDset if config.data.data_type == DataType.Dexm else dataclass
         train_data = None if skip_train_dataset else dataclass(config.data,
                                                                 datapath,
                                                                 datasplit_type=DataSplitType.Train,
@@ -80,16 +77,28 @@ def create_dataset(config, datadir, raw_data_dict=None, skip_train_dataset=False
         val_data_kwargs = {'allow_generation': False}
         train_data_kwargs['enable_random_cropping'] = enable_random_cropping
         val_data_kwargs['enable_random_cropping'] = False
-        data_class = MultiChDeterministicTiffDloader
-        train_data = None if skip_train_dataset else data_class(config.data,
-                                                                datapath,
-                                                                datasplit_type=DataSplitType.Train,
-                                                                val_fraction=config.training.val_fraction,
-                                                                test_fraction=config.training.test_fraction,
-                                                                normalized_input=normalized_input,
-                                                                use_one_mu_std=use_one_mu_std,
-                                                                enable_rotation_aug=train_aug_rotate,
-                                                                **train_data_kwargs)
+
+        if config.data.data_type == DataType.Dexm:
+            train_data_kwargs.pop('allow_generation')
+            val_data_kwargs.pop('allow_generation')
+            data_class = MultiFileDset
+        else:
+            data_class = MultiChDeterministicTiffDloader
+
+        if skip_train_dataset:
+            train_data = None
+        else:
+            train_data = data_class(
+                config.data,
+                datapath,
+                datasplit_type=DataSplitType.Train,
+                val_fraction=config.training.val_fraction,
+                test_fraction=config.training.test_fraction,
+                normalized_input=normalized_input,
+                use_one_mu_std=use_one_mu_std,
+                enable_rotation_aug=train_aug_rotate,
+                **train_data_kwargs
+            )
 
         max_val = train_data.get_max_val()
         val_data = data_class(
@@ -233,7 +242,6 @@ def train_network(train_loader, val_loader, data_mean, data_std, config, model_n
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    import numpy as np
 
     from usplit.configs.deepencoder_lvae_config import get_config
 
